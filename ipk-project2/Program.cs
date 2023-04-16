@@ -1,6 +1,7 @@
 ﻿// Author: Simon Bencik
 // Login: xbenci01
 
+using System.Reflection.PortableExecutable;
 using CommandLine;
 using SharpPcap;
 using SharpPcap.LibPcap;
@@ -79,12 +80,50 @@ namespace ipk_project2
             if (device == null)
             {
                 Console.WriteLine("Device {0} not found.", arguments.Interface);
-                return;
+                Environment.Exit(1);
             }
 
             device.OnPacketArrival += new PacketArrivalEventHandler(OnPacketArrival);
             
-            device.Open(DeviceModes.Promiscuous);
+            // Filters based on arguments
+            Dictionary<string, bool> filterOptions = new Dictionary<string, bool>();
+            filterOptions["tcp"] = arguments.Tcp;
+            filterOptions["udp"] = arguments.Udp;
+            filterOptions["icmp"] = arguments.Icmp4;
+            filterOptions["icmp6"] = arguments.Icmp6;
+            filterOptions["arp"] = arguments.Arp;
+            filterOptions["ndp"] = arguments.Ndp;
+            filterOptions["igmp"] = arguments.Igmp;
+            filterOptions["mld"] = arguments.Mld;
+            
+            string filterString = "";
+            
+            // Loop the dictionary and set filters
+            foreach (KeyValuePair<string, bool> filter in filterOptions)
+            {
+                if (filter.Key == "ndp" && filter.Value)
+                {
+                    filterString += "icmp6 and icmp6.type == 135 ";
+                }
+                else if (filter.Key == "mld" && filter.Value)
+                {
+                    filterString += "icmp6 and icmp6.type == 130 ";
+                }
+                else if (filter.Value)
+                {
+                    filterString += $"{filter.Key} ";
+                }
+            }
+            
+            // Additionally add port (Relevant for TCP and UDP)
+            if (arguments.Port != null && (arguments.Tcp || arguments.Udp))
+            {
+                filterString += "port " + arguments.Port;
+            }
+            
+            Console.WriteLine("filter: {0}", filterString);
+            device.Open(DeviceModes.Promiscuous, 1000);
+            device.Filter = filterString;
             device.Capture(arguments.Number);
         }
         
@@ -99,26 +138,79 @@ namespace ipk_project2
 
             // Print the packet data
             var time = e.GetPacket().Timeval.Date.ToUniversalTime().ToString("yyy-MM-dd'T'HH:mm:ss.fffK");
-            var srcMac = ethernetPacket?.SourceHardwareAddress.ToString() ?? "N/A";
-            var dstMac = ethernetPacket?.DestinationHardwareAddress.ToString() ?? "N/A";
+            var srcMac = ethernetPacket != null ? string.Join(":", ethernetPacket.SourceHardwareAddress.GetAddressBytes().Select(b => b.ToString("x2"))) : "N/A";
+            var dstMac = ethernetPacket != null ? string.Join(":", ethernetPacket.DestinationHardwareAddress.GetAddressBytes().Select(b => b.ToString("x2"))) : "N/A";
             var frameLength = e.GetPacket().Data.Length;
             var srcIp = ipPacket?.SourceAddress.ToString() ?? "N/A";
             var dstIp = ipPacket?.DestinationAddress.ToString() ?? "N/A";
             var srcPort = tcpPacket?.SourcePort ?? udpPacket?.SourcePort ?? 0;
             var dstPort = tcpPacket?.DestinationPort ?? udpPacket?.DestinationPort ?? 0;
-            var byteOffset = BitConverter.ToString(e.GetPacket().Data);
 
             Console.WriteLine("timestamp: {0}", time);
             Console.WriteLine("src MAC: {0}", srcMac);
             Console.WriteLine("dst MAC: {0}", dstMac);
-            Console.WriteLine("frame length: {0}", frameLength);
+            Console.WriteLine("frame length: {0} bytes", frameLength);
             Console.WriteLine("src IP: {0}", srcIp);
             Console.WriteLine("dst IP: {0}", dstIp);
             Console.WriteLine("src port: {0}", srcPort);
             Console.WriteLine("dst port: {0}", dstPort);
             Console.WriteLine();
-            Console.WriteLine(" {0}", byteOffset);
+            PrintDataOffset(e.GetPacket().Data);
             Console.WriteLine();
+        }
+
+        // Function that iterates over packet data and prints offset
+        private static void PrintDataOffset(byte[] packetData)
+        { 
+            int byteOffset = 0;
+
+            // Print the data offset
+            while (byteOffset < packetData.Length)
+            {
+                Console.Write("0x{0:x4}: ", byteOffset);
+
+                for (int i = 0; i < 16; i++)
+                {
+                    if (byteOffset + i < packetData.Length)
+                    {
+                        byte b = packetData[byteOffset + i];
+                        Console.Write("{0:x2} ", b);
+                    }
+                    else
+                    {
+                        Console.Write("   ");
+                    }
+                }
+
+                Console.Write(" ");
+
+                // Print the ASCII offset
+                for (int i = 0; i < 16; i++)
+                {
+                    if (byteOffset + i < packetData.Length)
+                    {
+                        byte b = packetData[byteOffset + i];
+                        char c = (char)b;
+                        if (b >= 32 && b <= 126)
+                        {
+                            Console.Write(c);
+                        }
+                        else
+                        {
+                            Console.Write(".");
+                        }
+                    }
+                    else
+                    {
+                        Console.Write(" ");
+                    }
+                }
+
+                Console.WriteLine();
+
+                byteOffset += 16;
+            }
+
         }
     }
 }
