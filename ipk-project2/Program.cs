@@ -76,7 +76,10 @@ namespace ipk_project2
 
                 });
             
-            var device = (LibPcapLiveDevice)CaptureDeviceList.Instance[arguments.Interface];
+            var device = CaptureDeviceList.Instance.FirstOrDefault(
+                    d => d.Name.Equals(arguments.Interface, StringComparison.OrdinalIgnoreCase))
+                    as LibPcapLiveDevice;            
+            
             if (device == null)
             {
                 Console.WriteLine("Device {0} not found.", arguments.Interface);
@@ -96,32 +99,32 @@ namespace ipk_project2
             filterOptions["igmp"] = arguments.Igmp;
             filterOptions["mld"] = arguments.Mld;
             
-            string filterString = "";
+            List<string> filters = new List<string>();
             
             // Loop the dictionary and set filters
             foreach (KeyValuePair<string, bool> filter in filterOptions)
             {
                 if (filter.Key == "ndp" && filter.Value)
                 {
-                    filterString += "icmp6 and icmp6.type == 135 ";
+                    filters.Add("icmp6 and icmp6.type == 135");
                 }
                 else if (filter.Key == "mld" && filter.Value)
                 {
-                    filterString += "icmp6 and icmp6.type == 130 ";
+                    filters.Add("icmp6 and icmp6.type == 130 ");
                 }
                 else if (filter.Value)
                 {
-                    filterString += $"{filter.Key} ";
+                    filters.Add(filter.Key);
                 }
             }
             
             // Additionally add port (Relevant for TCP and UDP)
             if (arguments.Port != null && (arguments.Tcp || arguments.Udp))
             {
-                filterString += "port " + arguments.Port;
+                filters.Add($"port {arguments.Port}");
             }
             
-            Console.WriteLine("filter: {0}", filterString);
+            string filterString = string.Join(" or ", filters);
             device.Open(DeviceModes.Promiscuous, 1000);
             device.Filter = filterString;
             device.Capture(arguments.Number);
@@ -157,6 +160,7 @@ namespace ipk_project2
             Console.WriteLine();
             PrintDataOffset(e.GetPacket().Data);
             Console.WriteLine();
+            Console.WriteLine("-----------------------------------------------------------------");
         }
 
         // Function that iterates over packet data and prints offset
