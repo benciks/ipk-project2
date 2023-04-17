@@ -135,7 +135,7 @@ namespace ipk_project2
                 }
                 else if (filter.Key == "mld" && filter.Value)
                 {
-                    filters.Add("icmp6 and (icmp6[0] == 131)");
+                    filters.Add("icmp6 and (icmp6[0] == 130 or icmp6[0] == 131 or icmp6[0] == 132)");
                 }
                 else if (filter.Key == "tcp" && filter.Value && arguments.Port != null)
                 {
