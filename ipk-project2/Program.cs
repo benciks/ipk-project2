@@ -11,6 +11,7 @@ namespace ipk_project2
 {
     class Program
     {
+        // Specify arguments for CommandLineParser
         public class Options
         {
             [Option('i', "interface", Required = false, HelpText = "Interface to use." )]
@@ -49,10 +50,12 @@ namespace ipk_project2
 
         static void Main(string[] args)
         {
+            // Parse arguments
             var arguments = new Options();
             Parser.Default.ParseArguments<Options>(args)
                 .WithParsed<Options>(o =>
                 {
+                    // Handle empty interface or print interfaces
                     if (o.Interface == null)
                     {
                         var interfaces = CaptureDeviceList.Instance;
@@ -72,23 +75,44 @@ namespace ipk_project2
                         
                         Environment.Exit(0);
                     }
+                    
+                    // Check correct port number and range
+                    if (o.Port != null)
+                    {
+                        int portNumber;
+                        if (!Int32.TryParse(o.Port, out portNumber))
+                        {
+                            Console.WriteLine("Port number is not a number");
+                            Environment.Exit(1);
+                        }
+                        
+                        if (portNumber < 0 || portNumber > 65535)
+                        {
+                            Console.WriteLine("Port number out of range (0-65535)");
+                            Environment.Exit(1);
+                        }
+                    }
+                    
                     arguments = o;
 
                 });
             
+            // Check if interface exists and get it
             var device = CaptureDeviceList.Instance.FirstOrDefault(
                     d => d.Name.Equals(arguments.Interface, StringComparison.OrdinalIgnoreCase))
                     as LibPcapLiveDevice;            
             
+            // Otherwise if device is null print error and exit
             if (device == null)
             {
                 Console.WriteLine("Device {0} not found.", arguments.Interface);
                 Environment.Exit(1);
             }
 
+            // Define packet handling method
             device.OnPacketArrival += new PacketArrivalEventHandler(OnPacketArrival);
             
-            // Filters based on arguments
+            // Create dictionary with arguments to iterate over
             Dictionary<string, bool> filterOptions = new Dictionary<string, bool>();
             filterOptions["tcp"] = arguments.Tcp;
             filterOptions["udp"] = arguments.Udp;
@@ -99,9 +123,10 @@ namespace ipk_project2
             filterOptions["igmp"] = arguments.Igmp;
             filterOptions["mld"] = arguments.Mld;
             
+            // Helper list for filters
             List<string> filters = new List<string>();
             
-            // Loop the dictionary and set filters
+            // Loop the dictionary and append filters
             foreach (KeyValuePair<string, bool> filter in filterOptions)
             {
                 if (filter.Key == "ndp" && filter.Value)
@@ -112,19 +137,23 @@ namespace ipk_project2
                 {
                     filters.Add("icmp6 and icmp6.type == 130 ");
                 }
+                else if (filter.Key == "tcp" && filter.Value && arguments.Port != null)
+                {
+                    filters.Add($"tcp and port {arguments.Port}");
+                }
+                else if (filter.Key == "udp" && filter.Value && arguments.Port != null)
+                {
+                    filters.Add($"udp and port {arguments.Port}");
+                }
                 else if (filter.Value)
                 {
                     filters.Add(filter.Key);
                 }
             }
             
-            // Additionally add port (Relevant for TCP and UDP)
-            if (arguments.Port != null && (arguments.Tcp || arguments.Udp))
-            {
-                filters.Add($"port {arguments.Port}");
-            }
-            
+            // Join the filters with or and set the filter
             string filterString = string.Join(" or ", filters);
+            
             device.Open(DeviceModes.Promiscuous, 1000);
             device.Filter = filterString;
             device.Capture(arguments.Number);
@@ -132,7 +161,7 @@ namespace ipk_project2
         
         private static void OnPacketArrival(object sender, PacketCapture e)
         {
-            // Extract the packet data
+            // Extract the packet data into various objects (Some can be null)
             var packet = Packet.ParsePacket(e.GetPacket().LinkLayerType, e.GetPacket().Data);
             var tcpPacket = packet.Extract<PacketDotNet.TcpPacket>();
             var udpPacket = packet.Extract<PacketDotNet.UdpPacket>();
@@ -144,23 +173,37 @@ namespace ipk_project2
             var srcMac = ethernetPacket != null ? string.Join(":", ethernetPacket.SourceHardwareAddress.GetAddressBytes().Select(b => b.ToString("x2"))) : "N/A";
             var dstMac = ethernetPacket != null ? string.Join(":", ethernetPacket.DestinationHardwareAddress.GetAddressBytes().Select(b => b.ToString("x2"))) : "N/A";
             var frameLength = e.GetPacket().Data.Length;
-            var srcIp = ipPacket?.SourceAddress.ToString() ?? "N/A";
-            var dstIp = ipPacket?.DestinationAddress.ToString() ?? "N/A";
-            var srcPort = tcpPacket?.SourcePort ?? udpPacket?.SourcePort ?? 0;
-            var dstPort = tcpPacket?.DestinationPort ?? udpPacket?.DestinationPort ?? 0;
+            var srcIp = ipPacket?.SourceAddress.ToString() ?? null;
+            var dstIp = ipPacket?.DestinationAddress.ToString() ?? null;
+            var srcPort = tcpPacket?.SourcePort ?? udpPacket?.SourcePort ?? null;
+            var dstPort = tcpPacket?.DestinationPort ?? udpPacket?.DestinationPort ?? null;
 
+            Console.WriteLine();
             Console.WriteLine("timestamp: {0}", time);
             Console.WriteLine("src MAC: {0}", srcMac);
             Console.WriteLine("dst MAC: {0}", dstMac);
             Console.WriteLine("frame length: {0} bytes", frameLength);
-            Console.WriteLine("src IP: {0}", srcIp);
-            Console.WriteLine("dst IP: {0}", dstIp);
-            Console.WriteLine("src port: {0}", srcPort);
-            Console.WriteLine("dst port: {0}", dstPort);
+            if (srcIp is not null)
+            {
+                Console.WriteLine("src IP: {0}", srcIp);
+            }
+
+            if (dstIp is not null)
+            { 
+                Console.WriteLine("dst IP: {0}", dstIp);
+            }
+            if (srcPort is not null)
+            {
+                Console.WriteLine("src port: {0}", srcPort);
+            }
+            if (dstPort is not null)
+            {
+                Console.WriteLine("dst port: {0}", dstPort);
+            }
             Console.WriteLine();
             PrintDataOffset(e.GetPacket().Data);
             Console.WriteLine();
-            Console.WriteLine("-----------------------------------------------------------------");
+            Console.WriteLine("-------------------------------------------------------------------------");
         }
 
         // Function that iterates over packet data and prints offset
