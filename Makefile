@@ -15,7 +15,7 @@ all:
 	mv -v $(PUBLISH_DIR)/$(EXECUTABLE) ./
 
 zip:
-	zip -r xbenci01.zip src/ Makefile README.md CHANGELOG.md LICENSE images/
+	zip -r xbenci01.zip src/ipk-sniffer.csproj src/Program.cs Makefile README.md CHANGELOG.md LICENSE images/
 
 clean:
 	rm -rf $(CURDIR)/$(EXECUTABLE)

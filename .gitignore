@@ -6,3 +6,5 @@ riderModule.iml
 .idea/
 .DS_Store
 ipk-sniffer
+.gitignore
+xbenci01.zip
