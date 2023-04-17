@@ -3,9 +3,12 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net6.0</TargetFramework>
-        <RootNamespace>ipk_project2</RootNamespace>
+        <RootNamespace>src</RootNamespace>
+        <PublishSingleFile>true</PublishSingleFile>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <DebugType>None</DebugType>
+        <DebugSymbols>False</DebugSymbols>
     </PropertyGroup>
 
     <ItemGroup>

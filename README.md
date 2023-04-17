@@ -2,24 +2,25 @@
 Author: Šimon Benčík, xbenci01
 
 ## Introduction
-The goal of the project was to create a Network Sniffer using a *pcap library. The sniffer should allow various arguments that help specify protocol to capture, port and number of packets.
+The goal of the project was to create a Network Sniffer using the *pcap library. The sniffer should allow various arguments to help specify the capture protocol, port and packet count.
 
 ## Theory
-A network sniffer is a tool used to monitor and analyze network traffic. It captures packets that flow across a network on set interface and analyzes their content. Sniffers are used for various applications, including diagnosing network issues, preventing security threats or optimizing network performance.
+A network sniffer is a tool used to monitor and analyze network traffic. It captures packets flowing through the network on a configured interface and analyzes their contents. Sniffers are used for a variety of purposes, including diagnosing network problems, preventing security threats, or optimizing network performance.
 
 ## Design
-The sniffer is written in C# using framework .NET 6.0. To parse arguments, a library **CommandLineParser** was used, which handles many edgecases and helps keeping the code for parsing arguments clean and short. In order to work with interfaces and capture data a **SharpPcap** library was used. This library is built on top of libpcap and WinPcap and provides simple API for .NET framework. Besides that, a library **PacketDotNet** was used to dissect incoming packets.
+Sniffer is written in C# using the .NET 6.0 framework. The **CommandLineParser** library was used to parse arguments, which handles many edge cases and helps keep the argument parsing code clean and short. The **SharpPcap** library was used to handle interfaces and data capture. This library is built on top of libpcap and WinPcap and provides a simple API for the .NET framework. In addition, the **PacketDotNet** library was used to parse incoming packets.
 
 ## Implementation
-At the beginning, arguments are parsed based on the Options class by CommandLineParser. If not interface is provided, the program shows list of all active interfaces and exits, otherwise it checks if the provided interface is contained in CaptureDeviceList class provided by SharpPcap. Additionally, a port is checked for correct format and range. When device is assigned to variable, it's type is changed, in order to control amount of packets to capture, since instance of CaptureDeviceList doesn't provide argument for Capture method. Afterwards, a handler, represented by helper function is assigned to device.onPacketArrival. In this method, needed packet data is extracted and printed. For printing byte offset, a helper function was created that iterates over the packet data and prints out hex byte offset as well as it's ASCII representation. This byte offset output matches the one presented in tool Wireshark. For filters, a dictionary is created in order to loop over it's bool values. When value is true, the key is added to filters array, with the exception of mld and ndp protocols that require icmp6 type set. After the loop is over, the filters array containing strings is joined with keyword "or". This allows for combining multiple protocols when we want to capture for example both arp and icmp6 packets.
+Initially, the arguments are parsed based on the Options class using CommandLineParser. If no interface is specified, the program displays a list of all active interfaces and exits, otherwise it checks if the specified interface is contained in the CaptureDeviceList class provided by SharpPcap. In addition, the correct format and port range are checked. When a device is assigned to a variable, its type is changed to control the amount of packets captured, since the CaptureDeviceList instance does not provide an argument to the Capture method. Then, device.onPacketArrival is assigned a handler, represented by a helper function. In this method, the necessary packet data is extracted and dumped. To print the byte offset, a helper function has been created that iterates the packet data and prints the hex byte offset as well as its ASCII representation. This byte offset output matches the output presented in Wireshark. A dictionary is created for filters and their bool values. If the value is true, the key is added to the filters array, except for the mld and ndp protocols, which need icmp6.type to be set. When the loop is complete, the filters array containing the strings is concatenated using the "or" keyword. This allows multiple protocols to be filtered at once.
 
 ## Testing
-Testing was done manually throughout the entire development process. Vast majority of testing was aimed at the output format of the packets (correct addresses, byte offset representation), functionality of filters and incorrect inputs in order to avoid unhandled exceptions. The process consisted of following: 
-1. At first a packet captures for various protocols were ran using **tcpreplay** on loopback interface (since it gets less traffic). To test the different protocols, the captures were downloaded from [PacketLife](https://packetlife.net/captures/).
-2. Having open both Wireshark and network sniffer, output was compared between the two.
-3. Some protocols, namely ndp and mld were harder to test this way (missing captures on PacketLife for mld), so a small python script using library scapy was used to mock and send out these packets.
+Testing was performed manually throughout the development process. The vast majority of testing focused on the output packet format (correct addresses, byte offset representation), filter functionality, and incorrect inputs to avoid unhandled exceptions. The process consisted of the following steps: 
 
-The testing environment was macOS 13.2.1 as well as the reference virtual machine running nixOS. Some sample outputs compared to wireshark can be seen in following images:
+1. First, packet capture for the various protocols on the loopback interface (since there is less traffic on the loopback interface) was initiated using **tcpreplay**. To test the different protocols, the captures were downloaded from [PacketLife](https://packetlife.net/captures/).
+2. After capturing the packets with network sniffer, the output was compared to the one in Wireshark, where the capture file could be opened and analyzed.
+3. Some protocols, namely ndp and mld, were more difficult to test this way (there were no captures available on PacketLife for mld), so a small python script using the scapy library was used to mock and send these packets.
+
+The test environment was macOS 13.2.1 as well as a reference virtual machine running nixOS. You can see some sample outputs compared to wireshark in the following figures:
 
 <table>
   <tr>
@@ -71,3 +72,4 @@ The testing environment was macOS 13.2.1 as well as the reference virtual machin
 - pcap-filter man page https://www.tcpdump.org/manpages/pcap-filter.7.html
 - packetlife - https://packetlife.net/captures/
 - tcpreplay man page https://linux.die.net/man/1/tcpreplay
+- ICMPv6 Parameters - https://www.iana.org/assignments/icmpv6-parameters/icmpv6-parameters.xhtml
