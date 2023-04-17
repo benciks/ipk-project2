@@ -1,7 +1,7 @@
-﻿// Author: Simon Bencik
+﻿// Author: Simon Bencik <xbenci01@vutbr.cz>
 // Login: xbenci01
+// Description: Network sniffer
 
-using System.Reflection.PortableExecutable;
 using CommandLine;
 using SharpPcap;
 using SharpPcap.LibPcap;
@@ -168,7 +168,7 @@ namespace ipk_project2
             var ipPacket = packet.Extract<PacketDotNet.IPPacket>();
             var ethernetPacket = packet.Extract<PacketDotNet.EthernetPacket>();
 
-            // Print the packet data
+            // Get the correct data format
             var time = e.GetPacket().Timeval.Date.ToUniversalTime().ToString("yyy-MM-dd'T'HH:mm:ss.fffK");
             var srcMac = ethernetPacket != null ? string.Join(":", ethernetPacket.SourceHardwareAddress.GetAddressBytes().Select(b => b.ToString("x2"))) : "N/A";
             var dstMac = ethernetPacket != null ? string.Join(":", ethernetPacket.DestinationHardwareAddress.GetAddressBytes().Select(b => b.ToString("x2"))) : "N/A";
@@ -178,16 +178,17 @@ namespace ipk_project2
             var srcPort = tcpPacket?.SourcePort ?? udpPacket?.SourcePort ?? null;
             var dstPort = tcpPacket?.DestinationPort ?? udpPacket?.DestinationPort ?? null;
 
+            // Print it out bro
             Console.WriteLine();
             Console.WriteLine("timestamp: {0}", time);
             Console.WriteLine("src MAC: {0}", srcMac);
             Console.WriteLine("dst MAC: {0}", dstMac);
             Console.WriteLine("frame length: {0} bytes", frameLength);
+            
             if (srcIp is not null)
             {
                 Console.WriteLine("src IP: {0}", srcIp);
             }
-
             if (dstIp is not null)
             { 
                 Console.WriteLine("dst IP: {0}", dstIp);
@@ -200,6 +201,7 @@ namespace ipk_project2
             {
                 Console.WriteLine("dst port: {0}", dstPort);
             }
+            
             Console.WriteLine();
             PrintDataOffset(e.GetPacket().Data);
             Console.WriteLine();
