@@ -12,10 +12,10 @@ EXECUTABLE = ipk-sniffer
 
 all:
 	dotnet publish ./src -f $(FRAMEWORK) -r $(RUNTIME) --no-self-contained
-	mv -v $(PUBLISH_DIR)/$(EXECUTABLE) ./$(EXECUTABLE)
+	mv -v $(PUBLISH_DIR)/$(EXECUTABLE) ./
 
 zip:
-	zip -r xbenci01.zip ipk-sniffer/ipk-sniffer.csproj ipk-sniffer/Program.cs Makefile README.md CHANGELOG.md LICENSE images/
+	zip -r xbenci01.zip src/ Makefile README.md CHANGELOG.md LICENSE images/
 
 clean:
 	rm -rf $(CURDIR)/$(EXECUTABLE)
