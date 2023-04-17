@@ -131,11 +131,11 @@ namespace ipk_project2
             {
                 if (filter.Key == "ndp" && filter.Value)
                 {
-                    filters.Add("icmp6 and icmp6.type == 135");
+                    filters.Add("icmp6 and (icmp6[0] == 135 or icmp6[0] == 136)");
                 }
                 else if (filter.Key == "mld" && filter.Value)
                 {
-                    filters.Add("icmp6 and icmp6.type == 130 ");
+                    filters.Add("icmp6 and (icmp6[0] == 130)");
                 }
                 else if (filter.Key == "tcp" && filter.Value && arguments.Port != null)
                 {
